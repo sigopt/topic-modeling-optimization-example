@@ -4,6 +4,8 @@
 
 rm(list = ls())
 
+set.seed(90210)
+
 ### Load necessary libraries ----
 library(textmineR)
 
