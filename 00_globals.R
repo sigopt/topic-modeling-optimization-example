@@ -5,6 +5,7 @@
 ### load packages ----
 library(textmineR)
 library(magrittr)
+library(stringr)
 library(SigOptR)
 
 ### declare GLOBAL variables ----
