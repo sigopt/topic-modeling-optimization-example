@@ -39,6 +39,8 @@ names(docs) <- docnames
 doc_class <- stringr::str_split(docnames, pattern = "/") %>%
   sapply(function(x) x[3])
 
+doc_class <- factor(doc_class)
+
 dtm <- CreateDtm(doc_vec = docs) # stopwords English and SMART
 
 dim(dtm)
