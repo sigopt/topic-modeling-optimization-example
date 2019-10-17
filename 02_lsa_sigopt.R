@@ -17,7 +17,7 @@ experiment <- create_experiment(list(
   parameters = list(
     list(name = "k", type = "int", bounds = list(min = 100, max = 900))
   ),
-  parallel_bandwidth = 1,
+  parallel_bandwidth = 4,
   observation_budget = 100,
   project = "topicmodel_compare"
 ))
@@ -86,9 +86,7 @@ create_model <- function(assignments) {
 }
 
 ### run the optimization loop ----
-for(j in 1:experiment$observation_budget) {
-  
-  # set.seed(random_seed)
+output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
   
   suggestion <- create_suggestion(experiment$id)
   
@@ -98,7 +96,8 @@ for(j in 1:experiment$observation_budget) {
     suggestion=suggestion$id,
     value=value
   ))
-}
+}, mc.cores = 4)
+
 
 ### get the final results ----
 lsa_experiment <- fetch_experiment(experiment$id)
