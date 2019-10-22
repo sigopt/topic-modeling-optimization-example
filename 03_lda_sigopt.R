@@ -31,12 +31,12 @@ load("data_derived/20_newsgroups_formatted.RData")
 
 ### declare model creation and evaluation functions for SigOpt ----
 
+# sample a split to train the topic model and train the random forest model
+tlda <- sample(train1, size = 2199, replace = FALSE)
+
+trf <- setdiff(train1, tlda)
+
 create_model <- function(assignments) {
-  
-  # sample a split to train the topic model and train the random forest model
-  tlda <- sample(train1, size = 2199, replace = FALSE)
-  
-  trf <- setdiff(train1, tlda)
   
   # create an LDA model 
   
