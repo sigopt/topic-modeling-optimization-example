@@ -15,10 +15,16 @@ Sys.setenv(SIGOPT_API_TOKEN =
 experiment <- create_experiment(list(
   name = "LSI optimization",
   parameters = list(
-    list(name = "k", type = "int", bounds = list(min = 100, max = 900))
+    list(name = "k", type = "int", bounds = list(min = 20, max = 900))
   ),
-  parallel_bandwidth = 4,
-  observation_budget = 100,
+  parallel_bandwidth = 1,
+  observation_budget = 50,
+  # metrics = list(list(name = "acc", 
+  #                     objective = "maximize",
+  #                     strategy = "optimize"), 
+  #                list(name = "coh",
+  #                     objective = "maximize",
+  #                     strategy = "optimize")),
   project = "topicmodel_compare"
 ))
 
@@ -79,24 +85,37 @@ create_model <- function(assignments) {
   coh <- mean(coh)
   
   # return metrics
-  metrics <- list(acc = acc, coh = coh)
+  # metrics <- list(acc = acc, coh = coh)
+  # 
+  # metrics
   
-  metrics
+  mean(c(coh, acc))
   
 }
 
 ### run the optimization loop ----
-output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
-  
-  suggestion <- create_suggestion(experiment$id)
-  
-  value <- create_model(suggestion$assignments)
-  
-  create_observation(experiment$id, list(
-    suggestion=suggestion$id,
-    value=value
-  ))
-}, mc.cores = 4)
+# output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
+# 
+#   suggestion <- create_suggestion(experiment$id)
+# 
+#   value <- create_model(suggestion$assignments)
+# 
+#   create_observation(experiment$id, list(
+#     suggestion=suggestion$id,
+#     value=value
+#   ))
+# }, mc.cores = 4)
+
+for (j in seq_len(experiment$observation_budget)) {
+    suggestion <- create_suggestion(experiment$id)
+
+    value <- create_model(suggestion$assignments)
+
+    create_observation(experiment$id, list(
+      suggestion=suggestion$id,
+      value=value
+    ))
+}
 
 
 ### get the final results ----
