@@ -1,0 +1,132 @@
+---
+title: "Using SigOpt to Tune Latent Dirichlet Allocation"
+author: "Tommy Jones"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+Probabilistic topic models are latent variable models that describe a process for words appearing on the pages of a corpus of documents. Words are drawn from “topics” which are [multinomial probability distributions](https://en.wikipedia.org/wiki/Multinomial_distribution) over words. Documents, in turn, are modeled as multinomial probability distributions of topics. While there are many probabilistic (and some non-probabilistic) topic models, the most popular by far is [Latent Dirichlet Allocation](https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation) (LDA). LDA puts [Dirichlet](https://en.wikipedia.org/wiki/Dirichlet_distribution) priors on the [multinomial distributions](https://en.wikipedia.org/wiki/Dirichlet-multinomial_distribution), mentioned above. 
+
+In this post, I use SigOpt to help me tune an LDA topic model for both semantic coherence (interpretability) and for accuracy of a downstream classification task (using a random forest classifier). As a comparison, I do the same for [Latent Semantic Analysis](https://en.wikipedia.org/wiki/Latent_semantic_analysis) (LSA), a simpler and non-probabilistic topic model.
+
+## A Problem
+Latent variable models suffer from a critical barrier. The key variables are “latent,” i.e. they are unseen. Therefore, these models lack a ground-truth against which one can guide modeling decisions. For example, how many topics should a given model have? Is choosing 500 topics better than 50 for a particular corpus? What should prior parameter settings be for a corpus of short diverse documents (e.g. tweets)? How about a corpus of longer more homogenous documents? What guarantees against a pathologically misspecified model? 
+
+This is a perfect scenario for SigOpt. First, LDA's hyperparameter space is deceivingly complicated. It has only three hyperparameters, but they can take on a fairly wide range of values. And the way they interact with each other is (still) not entirely understood. Second, training an LDA model is very compute intensive. So, grid search is generally infeasible (or at least undesireable) unless you have a small dataset or are only exploring one hyperparameter (usually the number of topics). 
+
+LSA, by contrast, is much simpler. But it serves as a useful foil for this experiment.
+
+## LDA and its hyperparameters
+Much has been written about LDA over the years. There's no need to repeat it here. 
+
+The bottom line is that LDA has 3 hyperparameters:
+
+* $K$ - the number of topics
+* $\boldsymbol\alpha$ - which tunes the concentration of topics within documents
+* $\boldsymbol\beta$ - which tunes the concentration of words within documents
+
+## Optimizing LDA's hyperparameters
+
+Ranges of values
+
+Why alpha is symmetric & optimizing it
+
+Why beta is not symmetric and you're optimizing beta sum
+
+## LSA and its hyperparameters
+In contrast, LSA really only has one hyperparameter: $K$ - the number of topics. 
+
+## Evaluation metrics
+Evaluating topic models is problematic. Topic models are latent variable models, meaning the "topics" they create cannot be observed in the real world. To date, there is no single acceptable method for evaluating topic models. The closest to a consensus is a class of measures called "coherence". Coherence measures calculate the degree to which the highest scored terms in a topic belong together. Coherence metrics purport to correlate highly with human judgement. Yet this approach is not holistic. Coherence does not measure goodness-of-fit of the topic model, nor does coherence measure how well a topic model aids a task to which it is applied (e.g. document classification).
+
+To that end, I use SigOpt's multimetric optimization to optimize for *both* coherence *and* classification accuracy. In practice LDA is used for one or both of 
+
+* Getting a high-level understanding of a corpus of documents. 
+  In this case, interpretability (and thus coherence) really matters.
+* Constructing numeric features on textual data for some downstream task (like classification).
+  In this case, what really matters is accuracy of the downstream task.
+  
+Classification accuracy is pretty straightforward. But what about coherence?
+
+### Probabilistic Coherence
+Probabilistic coherence is available in the _textmineR_ package for R. It is a cohenrence measure based on the average difference between probabilities. For each pair of words $\{a, b\}$ in the top M words in a topic, probabilistic coherence calculates $P(b|a) - P(b)$, where $a$ is more probable than $b$ in the topic. $P(b|a)$ measures how probable $b$ is only in documents containing $a$. $P(b)$ measures how probable $b$ is in the corpus as a whole. If $b$ is not more probable in documents containing $b$, then the difference $P(b|a) - P(b)$ is close to zero. For example, suppose the top 4 words in a topic are $\{a, b, c, d\}$. Then calculate 
+
+1. $P(a|b) - P(b)$; 
+   $P(a|c) - P(c)$; 
+   $P(a|d) - P(d)$, 
+2. $P(b|c) - P(c)$; 
+   $P(b|d) - P(d)$ and 
+3. $P(c|d) - P(d)$.
+
+And all 6 differences are averaged together, giving the probabilistic coherence measure. Probabilistic coherence is bound between 1 and -1, though in practice negative values are very close to zero. Values close to 0 indicate that words in a topic are statistically independent of each other, indicating a junk topic. Positive values indicate words in a topic are positively correlated and *not* independent.[^12]
+
+[^12]: For an example of words that are positively correlated consider the words "the" and "this". Where you see "the" frequently, you will also find "this" (positive correlation). However, the relative frequency of the word "this" in documents containing "the" is the same (likely identical) to the relative frequency of "this" across the whole corpus (statistical independence). 
+
+## The 20 Newsgroups Dataset
+For expiriments, I used the 20 Newsgroups data set (Mitchell 1996). This data set contains 19,997 posts across 20 different newsgroups. Each of the 20 newsgroups has 1,000 documents in the corpus with the exception of _soc.religion.christian_ which has 997. After converting all words to lowercase and removing numbers and punctuation, the corpus has a vocabulary of 120,024 terms and a total of 7,383,852 unique tokens. The shortest document is 47 tokens and the longest is 38,944 with the median being 251. After removing stop words and infrequent terms, the vocabulary has 33,378 terms and a total of 3,759,122 unique tokens. The shortest document is now 34 tokens long and the longest is 12,719 with the median bieng 141.
+
+## Wonky train and test splits
+In a typical machine learning workflow with SigOpt, you'd probably divide your dataset into three subsets. On the first, you'd train your model. On the second, you'd get out-of-sample predictions and report your evaluation metric to SigOpt for optimization. Then, on the third, you'd test your final, fully-optimized, model to ensure you didn't overfit.
+
+In this case, however, we are chaining two models together. It's important to get your training environment as close as possible to the real world. Otherwise, you might end up with information leakage. Your model during the training process looks good, but it crashes and burns in the real world. 
+
+In this case in the "real world" we'd get topic predictions for documents that the topic model hasn't seen before. Then, you'd take those out-of-sample topic predictions and feed them into a random forest classifier for document classification. So, the random forest classifier needs to be trained on documents the topic model hasn't seen. Otherwise, the training inputs to random forest would be too "clean" and the classifier would certainly be biased if not outright fail on new data.
+
+So, you might've guessed that we need *4* subsets of the data in this case.
+
+1. A training set for the topic model
+2. A training set for random forest (that the topic model didn't see during training)
+3. A test set to use for the SigOpt optimization loop
+4. A validation set unseen by the topic model, random fores, or SigOpt
+
+For this experiment I used
+
+1. 1,000 documents to train the topic models
+2. 5,665 documents to train random forest
+3. 6,665 documents as a test set to calculate evaluation metrics to send to SigOpt
+4. 6,667 documents as a final validation set to see how this process would work in the "real world"
+
+## The Software Stack
+
+I used several R packages.
+
+* [`textmineR`](https://CRAN.R-project.org/package=textmineR) for text vectorization and topic modeling
+* [`randomForest`](https://CRAN.R-project.org/package=randomForest): the good old workhorse for classification built on Leo Breiman and Adele Cutler's original Fortran code. 
+* [`SigOptR`](https://CRAN.R-project.org/package=SigOptR), for access to SigOpt's API through R.
+* [`cloudml`](https://CRAN.R-project.org/package=cloudml) for running this project on Google's [Cloud ML service](https://cloud.google.com/ml-engine/)
+* [`magrittr`](https://CRAN.R-project.org/package=magrittr) and [`stringr`](https://CRAN.R-project.org/package=stringr) for various data formatting work and
+* [`parallel`](https://CRAN.R-project.org/package=parallel) for high level parallelization
+
+## Results
+
+### Pareto Frontiers
+
+Big picture:
+
+LDA is king
+LDA has lots (and lots) of suboptimal points whereas pretty much all of LSA's were near the frontier => lots of ways to get LDA wrong => SigOpt can really help
+Note that in both cases, these are biased samples. Grid search (or even uniform random search) would give you a representative sample of the hyperparameter space. However in this case, SigOpt's Bayesian optimization approach should bias us towards better hyperparameter choices.
+
+### Hyperparameter Importance
+
+K is king for classification accuracy
+
+all three hyperparameters matter equally (and perhaps in concert) for coherence
+
+### Individual Hyperparameters and Evaluation Metrics
+
+K is obviously strongly correlated with accuracy
+
+Other hyperparameters and K for coherence are noisy
+
+However, if we focus on just the pareto points, it does look like there might be a pattern
+
+K is slightly negatively correlated to coherence, but not as much as I would've thought
+
+beta sum is negatively correlated to accuracy (i.e. smaller values are more accurate) and mostly flat with coherence
+
+not sure how much it's worth getting into this here: my (ongoing) research points at why this might be - a smaller beta sum leads to more focused topics (and it goes well with larger k). So, smaller beta sum + larger K means picking up more subtle patterns in the data = more accuracy. FWIW - this is making me think there's a legit research paper here... If only the world still cared about LDA :'(
