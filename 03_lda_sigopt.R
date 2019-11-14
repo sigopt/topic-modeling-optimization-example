@@ -19,9 +19,14 @@ experiment <- create_experiment(list(
     list(name = "alpha", type = "double", bounds = list(min = 0.01, max = 1)),
     list(name = "beta_sum", type = "double", bounds = list(min = 50, max = 500))
   ),
-  parallel_bandwidth = 1,
-  observation_budget = 50,
-  # metrics = list(list(name = "acc"), list(name = "coh")),
+  parallel_bandwidth = 4,
+  observation_budget = 100,
+  metrics = list(list(name = "acc",
+                      objective = "maximize",
+                      strategy = "optimize"),
+                 list(name = "coh",
+                      objective = "maximize",
+                      strategy = "optimize")),
   project = "topicmodel_compare"
 ))
 
@@ -32,7 +37,7 @@ load("data_derived/20_newsgroups_formatted.RData")
 ### declare model creation and evaluation functions for SigOpt ----
 
 # sample a split to train the topic model and train the random forest model
-tlda <- sample(train1, size = 2199, replace = FALSE)
+tlda <- sample(train1, size = 1000, replace = FALSE)
 
 trf <- setdiff(train1, tlda)
 
@@ -40,11 +45,11 @@ create_model <- function(assignments) {
   
   # create an LDA model 
   
-  lda <- FitLdaModel(dtm[train1, ], k = assignments$k, 
+  lda <- FitLdaModel(dtm[tlda, ], k = assignments$k, 
                      iterations = 300, 
                      burnin = 250,
                      alpha = assignments$alpha, 
-                     beta = (assignments$beta_sum) * (colSums(dtm[train1,]) / sum(dtm[train1, ])),
+                     beta = (assignments$beta_sum) * (colSums(dtm[tlda,]) / sum(dtm[tlda, ])),
                      optimize_alpha = TRUE,
                      calc_likelihood = FALSE,
                      calc_r2 = FALSE,
@@ -77,29 +82,18 @@ create_model <- function(assignments) {
   coh <- mean(coh)
   
   # return metrics
-  # metrics <- list(acc = acc, coh = coh)
-  # 
-  # metrics
+  metrics <- list(list(name = "acc", value = acc), 
+                  list(name = "coh", value = coh))
   
-  mean(c(coh, acc))
+  metrics
+  
   
 }
 
 ### run the optimization loop ----
-# output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
-#   
-#   suggestion <- create_suggestion(experiment$id)
-#   
-#   value <- create_model(suggestion$assignments)
-#   
-#   create_observation(experiment$id, list(
-#     suggestion=suggestion$id,
-#     value=value
-#   ))
-#   
-# }, mc.cores = 4)
+Sys.sleep(60)
 
-for (j in seq_len(experiment$observation_budget)) {
+output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
   
   suggestion <- create_suggestion(experiment$id)
   
@@ -107,14 +101,14 @@ for (j in seq_len(experiment$observation_budget)) {
   
   create_observation(experiment$id, list(
     suggestion=suggestion$id,
-    value=value
+    values=value
   ))
-  
-}
+}, mc.cores = 4)
+
 ### get the final results ----
 lda_experiment <- fetch_experiment(experiment$id)
 
-lda_best_assignments <- experiment$progress$best_observation$assignments
+lda_best_assignments <- lda_experiment$progress$best_observation$assignments
 
 print(lda_best_assignments)
 

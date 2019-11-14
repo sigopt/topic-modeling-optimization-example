@@ -17,14 +17,14 @@ experiment <- create_experiment(list(
   parameters = list(
     list(name = "k", type = "int", bounds = list(min = 20, max = 900))
   ),
-  parallel_bandwidth = 1,
-  observation_budget = 50,
-  # metrics = list(list(name = "acc", 
-  #                     objective = "maximize",
-  #                     strategy = "optimize"), 
-  #                list(name = "coh",
-  #                     objective = "maximize",
-  #                     strategy = "optimize")),
+  parallel_bandwidth = 4,
+  observation_budget = 100,
+  metrics = list(list(name = "acc",
+                      objective = "maximize",
+                      strategy = "optimize"),
+                 list(name = "coh",
+                      objective = "maximize",
+                      strategy = "optimize")),
   project = "topicmodel_compare"
 ))
 
@@ -85,43 +85,34 @@ create_model <- function(assignments) {
   coh <- mean(coh)
   
   # return metrics
-  # metrics <- list(acc = acc, coh = coh)
-  # 
-  # metrics
-  
-  mean(c(coh, acc))
+  metrics <- list(list(name = "acc", value = acc), 
+                  list(name = "coh", value = coh))
+
+  metrics
   
 }
 
 ### run the optimization loop ----
-# output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
-# 
-#   suggestion <- create_suggestion(experiment$id)
-# 
-#   value <- create_model(suggestion$assignments)
-# 
-#   create_observation(experiment$id, list(
-#     suggestion=suggestion$id,
-#     value=value
-#   ))
-# }, mc.cores = 4)
 
-for (j in seq_len(experiment$observation_budget)) {
-    suggestion <- create_suggestion(experiment$id)
+Sys.sleep(60)
 
-    value <- create_model(suggestion$assignments)
+output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
 
-    create_observation(experiment$id, list(
-      suggestion=suggestion$id,
-      value=value
-    ))
-}
+  suggestion <- create_suggestion(experiment$id)
+
+  value <- create_model(suggestion$assignments)
+
+  create_observation(experiment$id, list(
+    suggestion=suggestion$id,
+    values=value
+  ))
+}, mc.cores = 4)
 
 
 ### get the final results ----
 lsa_experiment <- fetch_experiment(experiment$id)
 
-lsa_best_assignments <- experiment$progress$best_observation$assignments
+lsa_best_assignments <- lsa_experiment$progress$best_observation$assignments
 
 print(lsa_best_assignments)
 
