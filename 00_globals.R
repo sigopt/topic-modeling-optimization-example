@@ -9,9 +9,6 @@ library(magrittr)
 library(stringr)
 library(SigOptR)
 
-### declare GLOBAL variables ----
-random_seed <- 8675309
-
 ### declare functions ----
 
 # Function to train random forest model
