@@ -37,7 +37,10 @@ doc_class <- stringr::str_split(docnames, pattern = "/") %>%
 
 doc_class <- factor(doc_class)
 
-dtm <- CreateDtm(doc_vec = docs) # stopwords English and SMART
+# Using the default stopwords from textmineR. 
+# The default is the "english" set and "SMART" set.
+# Pretty common choice and it shouldn't make much of a difference on this data set.
+dtm <- CreateDtm(doc_vec = docs) 
 
 dim(dtm)
 
