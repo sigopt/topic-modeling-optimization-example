@@ -91,6 +91,9 @@ create_model <- function(assignments) {
 }
 
 ### run the optimization loop ----
+
+# need to pause the execution so the parallel workers don't get ahead of the 
+# API call
 Sys.sleep(60)
 
 output <- parallel::mclapply(seq_len(experiment$observation_budget), function(j){
