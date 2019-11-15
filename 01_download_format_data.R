@@ -4,7 +4,6 @@
 
 rm(list = ls())
 
-set.seed(90210)
 
 ### Load necessary libraries ----
 library(textmineR)
@@ -51,6 +50,7 @@ dtm <- dtm[, colSums(dtm > 0) >= 5]
 dim(dtm)
 
 ### sample rows into three groups ----
+set.seed(90210) # Setting a seed for reproducibility since we call sample below
 
 idx <- seq_len(nrow(dtm))
 
