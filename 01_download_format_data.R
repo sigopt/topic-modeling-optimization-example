@@ -54,9 +54,9 @@ set.seed(90210) # Setting a seed for reproducibility since we call sample below
 
 idx <- seq_len(nrow(dtm))
 
-train1 <- sample(idx, 6665)
+train1 <- sample(x = idx, size = 6665)
 
-train2 <- sample(setdiff(idx, train1), 6665)
+train2 <- sample(x = setdiff(idx, train1), size = 6665)
 
 test <- setdiff(idx, c(train1, train2))
 
