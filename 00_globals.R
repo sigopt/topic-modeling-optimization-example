@@ -26,7 +26,4 @@ predict_classifier <- function(object, new_data){
   predict(object = object, newdata = new_data, type = "prob")
 }
 
-# Function to get AUC from the random forest model
-
-
 
