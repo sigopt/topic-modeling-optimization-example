@@ -2,9 +2,6 @@
 # This script splits data into two training sets and a test set
 ################################################################################
 
-rm(list = ls())
-
-
 ### Load necessary libraries ----
 library(textmineR)
 
