@@ -2,10 +2,6 @@
 # This script splits data into two training sets and a test set
 ################################################################################
 
-rm(list = ls())
-
-set.seed(90210)
-
 ### Load necessary libraries ----
 library(textmineR)
 
@@ -41,7 +37,10 @@ doc_class <- stringr::str_split(docnames, pattern = "/") %>%
 
 doc_class <- factor(doc_class)
 
-dtm <- CreateDtm(doc_vec = docs) # stopwords English and SMART
+# Using the default stopwords from textmineR. 
+# The default is the "english" set and "SMART" set.
+# Pretty common choice and it shouldn't make much of a difference on this data set.
+dtm <- CreateDtm(doc_vec = docs) 
 
 dim(dtm)
 
@@ -51,12 +50,13 @@ dtm <- dtm[, colSums(dtm > 0) >= 5]
 dim(dtm)
 
 ### sample rows into three groups ----
+set.seed(90210) # Setting a seed for reproducibility since we call sample below
 
 idx <- seq_len(nrow(dtm))
 
-train1 <- sample(idx, 6665)
+train1 <- sample(x = idx, size = 6665)
 
-train2 <- sample(setdiff(idx, train1), 6665)
+train2 <- sample(x = setdiff(idx, train1), size = 6665)
 
 test <- setdiff(idx, c(train1, train2))
 

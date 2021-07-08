@@ -9,9 +9,6 @@ library(magrittr)
 library(stringr)
 library(SigOptR)
 
-### declare GLOBAL variables ----
-random_seed <- 8675309
-
 ### declare functions ----
 
 # Function to train random forest model
@@ -28,8 +25,5 @@ predict_classifier <- function(object, new_data){
   
   predict(object = object, newdata = new_data, type = "prob")
 }
-
-# Function to get AUC from the random forest model
-
 
 
